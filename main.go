@@ -1,16 +1,12 @@
 package main
 
-import (
-	"fmt"
-
-	"github.com/k0kubun/pp"
-	"github.com/shirou/gopsutil/net"
-)
+import log "github.com/sirupsen/logrus"
 
 func main() {
-	conn, err := net.Connections("")
-	pp.Println(conn)
+	opts := newFlowDumpOpts()
+	opts.deviceName = "en0"
+	err := loop(opts)
 	if err != nil {
-		fmt.Println("error", err)
+		log.WithField("error", err).Error("Error in main loop")
 	}
 }
