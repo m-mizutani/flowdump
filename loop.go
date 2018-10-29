@@ -28,7 +28,7 @@ func calcHash(addr1, port1, addr2, port2 []byte) uint32 {
 	d = append(d, addr2...)
 	d = append(d, port2...)
 	hash := fnv.New32()
-	hash.Sum(d)
+	hash.Write(d)
 	return hash.Sum32()
 }
 
@@ -57,21 +57,11 @@ func hashConn(conn connection) uint32 {
 type connCache map[uint32]connection
 
 func loop(opts flowDumpOpts) error {
-	netCh, netErr := startNetStat(opts.intervalNetStat)
 	flowCh, flowErr := startCapture(opts.deviceName, opts.intervalCapture)
 	cache := connCache{}
 
 	for {
 		select {
-		case connections := <-netCh:
-			for _, conn := range connections {
-				hv := hashConn(conn)
-				cache[hv] = conn
-			}
-
-		case err := <-netErr:
-			return err
-
 		case flows := <-flowCh:
 			pp.Println(flows)
 

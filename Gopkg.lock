@@ -119,6 +119,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/google/gopacket",
+    "github.com/google/gopacket/layers",
     "github.com/google/gopacket/pcap",
     "github.com/k0kubun/pp",
     "github.com/shirou/gopsutil/net",

@@ -19,6 +19,49 @@ type connection struct {
 
 type connList []connection
 
+func fetchConnStats() (connList, error) {
+	conns, err := net.Connections("")
+
+	if err != nil {
+		return nil, err
+	}
+
+	procCache := map[int32]*process.Process{}
+
+	connStats := connList{}
+	for _, conn := range conns {
+		if conn.Status == "CLOSED" || conn.Status == "LISTEN" || conn.Status == "" {
+			continue
+		}
+
+		connStat := connection{
+			localAddr:  conn.Laddr.IP,
+			localPort:  conn.Laddr.Port,
+			remoteAddr: conn.Raddr.IP,
+			remotePort: conn.Raddr.Port,
+			state:      conn.Status,
+			pid:        uint(conn.Pid),
+		}
+
+		proc, ok := procCache[conn.Pid]
+		if !ok {
+			proc, err = process.NewProcess(conn.Pid)
+			if err == nil && proc != nil {
+				procCache[conn.Pid] = proc
+			}
+		}
+
+		pname, err := proc.Name()
+		if err != nil {
+			return nil, err
+		}
+		connStat.pname = pname
+		connStats = append(connStats, connStat)
+	}
+
+	return connStats, nil
+}
+
 func startNetStat(interval int) (chan connList, chan error) {
 	connCh := make(chan connList)
 	errCh := make(chan error)
@@ -28,45 +71,10 @@ func startNetStat(interval int) (chan connList, chan error) {
 		defer close(errCh)
 
 		for {
-			conns, err := net.Connections("")
-
+			connStats, err := fetchConnStats()
 			if err != nil {
 				errCh <- err
 				return
-			}
-
-			procCache := map[int32]*process.Process{}
-
-			connStats := connList{}
-			for _, conn := range conns {
-				if conn.Status == "CLOSED" || conn.Status == "LISTEN" || conn.Status == "" {
-					continue
-				}
-
-				connStat := connection{
-					localAddr:  conn.Laddr.IP,
-					localPort:  conn.Laddr.Port,
-					remoteAddr: conn.Raddr.IP,
-					remotePort: conn.Raddr.Port,
-					state:      conn.Status,
-					pid:        uint(conn.Pid),
-				}
-
-				proc, ok := procCache[conn.Pid]
-				if !ok {
-					proc, err = process.NewProcess(conn.Pid)
-					if err == nil && proc != nil {
-						procCache[conn.Pid] = proc
-					}
-				}
-
-				pname, err := proc.Name()
-				if err != nil {
-					errCh <- err
-					return
-				}
-				connStat.pname = pname
-				connStats = append(connStats, connStat)
 			}
 			connCh <- connStats
 
